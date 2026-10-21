@@ -16,9 +16,34 @@ export const dynamic = "force-dynamic";
 const UPLOAD_URL =
   "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true";
 
-function requestOrigin(req: Request): string {
-  const header = req.headers.get("origin");
-  if (header) return header;
+function resolveOrigin(req: Request, clientOrigin?: string): string {
+  if (clientOrigin && (clientOrigin.startsWith("http://") || clientOrigin.startsWith("https://"))) {
+    return clientOrigin;
+  }
+  const originHeader = req.headers.get("origin");
+  if (originHeader) return originHeader;
+
+  const referer = req.headers.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).origin;
+    } catch {
+      // ignore
+    }
+  }
+
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  if (forwardedHost) {
+    const proto = req.headers.get("x-forwarded-proto") || "https";
+    return `${proto}://${forwardedHost}`;
+  }
+
+  const host = req.headers.get("host");
+  if (host) {
+    const proto = req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+    return `${proto}://${host}`;
+  }
+
   try {
     return new URL(req.url).origin;
   } catch {
@@ -51,6 +76,7 @@ export async function POST(req: Request) {
   const originalName = readString(body.fileName, 300);
   const mimeType = readString(body.mimeType, 100);
   const size = body.size;
+  const clientOrigin = typeof body.clientOrigin === "string" ? body.clientOrigin : undefined;
 
   if (!foName || !rigIc) {
     return Response.json({ error: "Name and Rig IC number are required" }, { status: 400 });
@@ -78,18 +104,21 @@ export async function POST(req: Request) {
   try {
     const folderId = await ensureUploadFolder(date, safeNamePart(foName), safeNamePart(rigIc));
     const accessToken = await getAccessToken();
+    const origin = resolveOrigin(req, clientOrigin);
+
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json; charset=UTF-8",
+      "X-Upload-Content-Type": mimeType,
+      "X-Upload-Content-Length": String(size),
+    };
+    if (origin) {
+      headers.Origin = origin;
+    }
 
     const res = await fetch(UPLOAD_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json; charset=UTF-8",
-        "X-Upload-Content-Type": mimeType,
-        "X-Upload-Content-Length": String(size),
-        // Passing the browser's Origin through makes Drive send CORS headers
-        // on the session URL, so the browser can PUT chunks straight to it.
-        Origin: requestOrigin(req),
-      },
+      headers,
       body: JSON.stringify({ name: driveName, parents: [folderId] }),
     });
 

@@ -16,6 +16,7 @@ interface Item {
   file: File;
   status: ItemStatus;
   progress: number;
+  statusMessage?: string;
   error?: string;
   /** Set once the bytes are safely in Drive, so a retry only has to log. */
   driveId?: string;
@@ -318,8 +319,15 @@ function UploadScreen({
       let driveId = item.driveId;
 
       if (!driveId) {
-        patch(item.id, { status: "uploading", progress: 0, error: undefined });
+        patch(item.id, {
+          status: "uploading",
+          progress: 0,
+          statusMessage: "Starting upload session…",
+          error: undefined,
+        });
         const session = await createSession(profile, category, item.file);
+
+        patch(item.id, { statusMessage: "Uploading to Google Drive…" });
 
         let lastPct = -1;
         const result = await uploadToSession({
@@ -329,17 +337,25 @@ function UploadScreen({
             const pct = Math.min(99, Math.floor((loaded / total) * 100));
             if (pct !== lastPct) {
               lastPct = pct;
-              patch(item.id, { progress: pct });
+              patch(item.id, { progress: pct, statusMessage: `Uploading… ${pct}%` });
             }
+          },
+          onStatusChange: (msg) => {
+            patch(item.id, { statusMessage: msg });
           },
         });
         driveId = result.id;
         patch(item.id, { driveId });
       }
 
-      patch(item.id, { status: "logging", progress: 100, error: undefined });
+      patch(item.id, {
+        status: "logging",
+        progress: 100,
+        statusMessage: "Saving to log…",
+        error: undefined,
+      });
       await logUpload(profile, category, description.trim(), driveId);
-      patch(item.id, { status: "done", progress: 100 });
+      patch(item.id, { status: "done", progress: 100, statusMessage: undefined });
     } catch (err) {
       patch(item.id, { status: "error", error: errorMessage(err) });
     }
@@ -442,8 +458,8 @@ function UploadScreen({
               <div className="file-foot">
                 <span>
                   {item.status === "queued" && "Ready to upload"}
-                  {item.status === "uploading" && `Uploading… ${item.progress}%`}
-                  {item.status === "logging" && "Saving to log…"}
+                  {item.status === "uploading" && (item.statusMessage || `Uploading… ${item.progress}%`)}
+                  {item.status === "logging" && (item.statusMessage || "Saving to log…")}
                   {item.status === "done" && <span className="ok-text">Uploaded ✓</span>}
                   {item.status === "error" && <span className="error-text">Failed</span>}
                 </span>

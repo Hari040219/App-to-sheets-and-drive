@@ -54,6 +54,7 @@ async function postJson<T>(url: string, profile: Profile, payload: unknown): Pro
 }
 
 export function createSession(profile: Profile, category: Category, file: File) {
+  const clientOrigin = typeof window !== "undefined" ? window.location.origin : "";
   return postJson<{ uploadUrl: string; fileName: string }>("/api/upload-session", profile, {
     category,
     date: profile.date,
@@ -62,6 +63,7 @@ export function createSession(profile: Profile, category: Category, file: File) 
     fileName: file.name || "video",
     mimeType: file.type || guessVideoMime(file.name),
     size: file.size,
+    clientOrigin,
   });
 }
 

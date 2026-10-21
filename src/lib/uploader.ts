@@ -136,6 +136,7 @@ export interface UploadOptions {
   file: File;
   sessionUrl: string;
   onProgress: (loaded: number, total: number) => void;
+  onStatusChange?: (statusText: string) => void;
   signal?: AbortSignal;
 }
 
@@ -143,6 +144,7 @@ export async function uploadToSession({
   file,
   sessionUrl,
   onProgress,
+  onStatusChange,
   signal,
 }: UploadOptions): Promise<{ id: string }> {
   const total = file.size;
@@ -197,6 +199,7 @@ export async function uploadToSession({
       if (attempt > MAX_RETRIES) {
         throw new UploadError("Connection kept failing. Check your signal and tap Retry.");
       }
+      onStatusChange?.(`Connection issue, retrying (${attempt}/${MAX_RETRIES})…`);
       needsResync = true;
       await sleep(backoff(attempt), signal);
     }
