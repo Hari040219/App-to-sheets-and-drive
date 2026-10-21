@@ -19,12 +19,27 @@ export function loadProfile(): Profile | null {
       parsed.name &&
       parsed.rigIc
     ) {
-      return { name: parsed.name, rigIc: parsed.rigIc, code: parsed.code };
+      // date is NOT restored — it defaults to today each session
+      const date =
+        "date" in parsed && typeof parsed.date === "string" && parsed.date
+          ? parsed.date
+          : todayIST();
+      return { name: parsed.name, rigIc: parsed.rigIc, code: parsed.code, date };
     }
   } catch {
     // storage unavailable or corrupt — treat as not saved
   }
   return null;
+}
+
+/** Returns today's date in IST as YYYY-MM-DD. */
+export function todayIST(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 export function saveProfile(profile: Profile): void {

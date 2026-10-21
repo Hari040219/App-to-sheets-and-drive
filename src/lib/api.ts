@@ -5,6 +5,8 @@ export interface Profile {
   name: string;
   rigIc: string;
   code: string;
+  /** IST date chosen by the FO, e.g. "2026-10-22" */
+  date: string;
 }
 
 export class ApiError extends Error {
@@ -54,6 +56,7 @@ async function postJson<T>(url: string, profile: Profile, payload: unknown): Pro
 export function createSession(profile: Profile, category: Category, file: File) {
   return postJson<{ uploadUrl: string; fileName: string }>("/api/upload-session", profile, {
     category,
+    date: profile.date,
     foName: profile.name,
     rigIc: profile.rigIc,
     fileName: file.name || "video",
@@ -71,6 +74,7 @@ export function logUpload(
   return postJson<{ ok: true; duplicate: boolean }>("/api/log", profile, {
     fileId,
     category,
+    date: profile.date,
     description,
     foName: profile.name,
     rigIc: profile.rigIc,

@@ -1,8 +1,8 @@
 import { hasValidAccessCode } from "@/lib/access";
 import { MAX_DESC_LEN, MAX_NAME_LEN, MAX_RIG_LEN, isCategory } from "@/lib/constants";
-import { ensureCategoryFolder } from "@/lib/drive-folders";
+import { ensureUploadFolder } from "@/lib/drive-folders";
 import { env, getDrive, getSheets } from "@/lib/google";
-import { readString } from "@/lib/sanitize";
+import { readString, safeNamePart } from "@/lib/sanitize";
 import { istStamp } from "@/lib/time";
 
 export const runtime = "nodejs";
@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 const HEADER = [
   "Timestamp (IST)",
+  "Date",
   "FO Name",
   "Rig IC Number",
   "Category",
@@ -43,7 +44,7 @@ async function readSheetState(tab: string) {
   const q = quoteTab(tab);
   return sheets.spreadsheets.values.batchGet({
     spreadsheetId,
-    ranges: [`${q}!A1:H1`, `${q}!H2:H`],
+    ranges: [`${q}!A1:I1`, `${q}!I2:I`],
   });
 }
 
@@ -100,12 +101,16 @@ export async function POST(req: Request) {
   const fileId = readString(body.fileId, 200);
   const foName = readString(body.foName, MAX_NAME_LEN);
   const rigIc = readString(body.rigIc, MAX_RIG_LEN);
+  const date = readString(body.date, 10);
   const category = body.category;
   const description =
     typeof body.description === "string" ? body.description.trim().slice(0, MAX_DESC_LEN) : "";
 
   if (!fileId || !foName || !rigIc || !isCategory(category)) {
     return Response.json({ error: "Missing or invalid fields" }, { status: 400 });
+  }
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return Response.json({ error: "A valid date is required" }, { status: 400 });
   }
 
   try {
@@ -122,7 +127,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "File not found in Drive" }, { status: 404 });
     }
 
-    const folderId = await ensureCategoryFolder(category);
+    const folderId = await ensureUploadFolder(date, safeNamePart(foName), safeNamePart(rigIc));
     const sizeBytes = Number(file.size ?? 0);
 
     if (file.trashed || !file.id || !file.name || !file.webViewLink) {
@@ -140,6 +145,7 @@ export async function POST(req: Request) {
 
     const row: (string | number)[] = [
       istStamp().display,
+      date,
       foName,
       rigIc,
       category,

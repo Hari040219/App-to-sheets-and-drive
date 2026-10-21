@@ -5,10 +5,10 @@ import {
   MAX_RIG_LEN,
   isCategory,
 } from "@/lib/constants";
-import { ensureCategoryFolder, forgetCategoryFolder } from "@/lib/drive-folders";
+import { ensureUploadFolder, forgetUploadFolder } from "@/lib/drive-folders";
 import { getAccessToken } from "@/lib/google";
-import { readString, safeNamePart, safeOriginalName } from "@/lib/sanitize";
-import { istStamp } from "@/lib/time";
+import { readString, safeNamePart } from "@/lib/sanitize";
+
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,12 +47,16 @@ export async function POST(req: Request) {
 
   const foName = readString(body.foName, MAX_NAME_LEN);
   const rigIc = readString(body.rigIc, MAX_RIG_LEN);
+  const date = readString(body.date, 10);
   const originalName = readString(body.fileName, 300);
   const mimeType = readString(body.mimeType, 100);
   const size = body.size;
 
   if (!foName || !rigIc) {
     return Response.json({ error: "Name and Rig IC number are required" }, { status: 400 });
+  }
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return Response.json({ error: "A valid date (YYYY-MM-DD) is required" }, { status: 400 });
   }
   if (!originalName) {
     return Response.json({ error: "File name is required" }, { status: 400 });
@@ -67,10 +71,12 @@ export async function POST(req: Request) {
     return Response.json({ error: "File is larger than the 5 GB limit" }, { status: 413 });
   }
 
-  const driveName = `${istStamp().fileStamp}_${safeNamePart(foName)}_${safeNamePart(rigIc)}_${safeOriginalName(originalName)}`;
+  // File name = category + original extension (e.g. "Pre Check.mp4")
+  const ext = originalName.includes(".") ? originalName.slice(originalName.lastIndexOf(".")) : "";
+  const driveName = `${category}${ext}`;
 
   try {
-    const folderId = await ensureCategoryFolder(category);
+    const folderId = await ensureUploadFolder(date, safeNamePart(foName), safeNamePart(rigIc));
     const accessToken = await getAccessToken();
 
     const res = await fetch(UPLOAD_URL, {
@@ -90,7 +96,7 @@ export async function POST(req: Request) {
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.error("Drive session creation failed", res.status, text.slice(0, 500));
-      if (res.status === 404) forgetCategoryFolder(category);
+      if (res.status === 404) forgetUploadFolder(date, safeNamePart(foName), safeNamePart(rigIc));
       return Response.json(
         { error: "Google Drive refused to start the upload. Try again shortly." },
         { status: 502 },

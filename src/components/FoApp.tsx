@@ -5,7 +5,7 @@ import type { ChangeEvent, FormEvent } from "react";
 import { createSession, logUpload, type Profile } from "@/lib/api";
 import { CATEGORIES, MAX_BYTES, MAX_DESC_LEN, MAX_NAME_LEN, MAX_RIG_LEN, type Category } from "@/lib/constants";
 import { formatBytes, isVideoFile } from "@/lib/format";
-import { loadProfile, saveProfile } from "@/lib/storage";
+import { loadProfile, saveProfile, todayIST } from "@/lib/storage";
 import { uploadToSession } from "@/lib/uploader";
 
 type Screen = "login" | "categories" | "upload";
@@ -52,7 +52,8 @@ export default function FoApp() {
         <div className="who">
           <div>
             <strong>{profile.name}</strong>
-            Rig IC: {profile.rigIc}
+            <span className="who-detail">Rig IC: {profile.rigIc}</span>
+            <span className="who-detail">📅 {profile.date}</span>
           </div>
           <button
             type="button"
@@ -107,7 +108,7 @@ export default function FoApp() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Screen 1: who are you                                                */
+/* Screen 1: who are you + date picker                                  */
 /* ------------------------------------------------------------------ */
 
 function LoginScreen({
@@ -122,21 +123,33 @@ function LoginScreen({
   const [name, setName] = useState(initial?.name ?? "");
   const [rigIc, setRigIc] = useState(initial?.rigIc ?? "");
   const [code, setCode] = useState(initial?.code ?? "");
+  const [date, setDate] = useState(initial?.date ?? todayIST());
   const [error, setError] = useState<string | null>(null);
 
   function submit(e: FormEvent) {
     e.preventDefault();
     const n = name.trim();
     const r = rigIc.trim();
+    if (!date) return setError("Please select a date.");
     if (!n) return setError("Please enter your name.");
     if (!r) return setError("Please enter the Rig IC number.");
-    onSave({ name: n, rigIc: r, code: code.trim() });
+    onSave({ name: n, rigIc: r, code: code.trim(), date });
   }
 
   return (
     <form onSubmit={submit} noValidate>
       <h1>FO Video Upload</h1>
       <p className="muted">Enter your details once. They stay saved on this phone.</p>
+
+      <label className="field">
+        Date
+        <span className="hint">Defaults to today — change if uploading for a different day</span>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
+      </label>
 
       <label className="field">
         Your name
@@ -283,7 +296,7 @@ function UploadScreen({
           progress: 0,
         };
         if (!isVideoFile(file)) {
-          next.push({ ...base, status: "error", invalid: true, error: "This isn’t a video file." });
+          next.push({ ...base, status: "error", invalid: true, error: "This isn't a video file." });
         } else if (file.size === 0) {
           next.push({ ...base, status: "error", invalid: true, error: "This file is empty." });
         } else if (file.size > MAX_BYTES) {
@@ -378,6 +391,12 @@ function UploadScreen({
       </button>
       <h1>{category}</h1>
 
+      <div className="folder-path">
+        📁 {profile.date} / {profile.name} / {profile.rigIc}
+        <br />
+        🎬 Video will be saved as <strong>{category}</strong>
+      </div>
+
       <label className="field">
         Description <span className="hint">Optional — applies to every video in this batch</span>
         <textarea
@@ -397,7 +416,7 @@ function UploadScreen({
 
       {(hasFiles || busy) && (
         <div className={`banner${busy ? " active" : ""}`} role="status">
-          ⚠️ Keep this page open while uploading. Don’t switch apps or lock your phone.
+          ⚠️ Keep this page open while uploading. Don't switch apps or lock your phone.
         </div>
       )}
 

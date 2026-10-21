@@ -78,6 +78,12 @@ p {
   overflow-wrap: anywhere;
 }
 
+.who-detail {
+  display: block;
+  font-size: 15px;
+  color: var(--muted);
+}
+
 .link {
   appearance: none;
   background: none;
@@ -113,6 +119,7 @@ label.field span.hint {
 
 input[type="text"],
 input[type="password"],
+input[type="date"],
 textarea {
   display: block;
   width: 100%;
@@ -210,6 +217,18 @@ button:focus-visible,
 }
 
 /* ---------- upload screen ---------- */
+.folder-path {
+  background: var(--soft);
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 8px 0 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 .banner {
   background: var(--warn-bg);
   color: var(--warn-fg);
