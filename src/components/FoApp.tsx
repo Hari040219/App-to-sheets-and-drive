@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { createSession, logUpload, type Profile } from "@/lib/api";
-import { CATEGORIES, MAX_BYTES, MAX_DESC_LEN, MAX_NAME_LEN, MAX_RIG_LEN, type Category } from "@/lib/constants";
-import { formatBytes, isVideoFile } from "@/lib/format";
+import { CATEGORIES, MAX_BYTES, MAX_DESC_LEN, MAX_NAME_LEN, MAX_RIG_LEN, isAgreementCategory, type Category } from "@/lib/constants";
+import { formatBytes, isAllowedFile } from "@/lib/format";
 import { loadProfile, saveProfile, todayIST } from "@/lib/storage";
 import { uploadToSession } from "@/lib/uploader";
 
@@ -250,6 +250,7 @@ function UploadScreen({
   setBusy: (b: boolean) => void;
   onBack: () => void;
 }) {
+  const isAgreement = isAgreementCategory(category);
   const [description, setDescription] = useState("");
   const [items, setItems] = useState<Item[]>([]);
 
@@ -296,8 +297,15 @@ function UploadScreen({
           status: "queued",
           progress: 0,
         };
-        if (!isVideoFile(file)) {
-          next.push({ ...base, status: "error", invalid: true, error: "This isn't a video file." });
+        if (!isAllowedFile(file, category)) {
+          next.push({
+            ...base,
+            status: "error",
+            invalid: true,
+            error: isAgreement
+              ? "This isn't an image, PDF, or video file."
+              : "This isn't a video file.",
+          });
         } else if (file.size === 0) {
           next.push({ ...base, status: "error", invalid: true, error: "This file is empty." });
         } else if (file.size > MAX_BYTES) {
@@ -410,11 +418,11 @@ function UploadScreen({
       <div className="folder-path">
         📁 {profile.date} / {profile.name} / {profile.rigIc}
         <br />
-        🎬 Video will be saved as <strong>{category}</strong>
+        {isAgreement ? "📄 Document" : "🎬 Video"} will be saved as <strong>{category}</strong>
       </div>
 
       <label className="field">
-        Description <span className="hint">Optional — applies to every video in this batch</span>
+        Description <span className="hint">Optional — applies to every {isAgreement ? "file" : "video"} in this batch</span>
         <textarea
           value={description}
           maxLength={MAX_DESC_LEN}
@@ -424,9 +432,21 @@ function UploadScreen({
       </label>
 
       <label className={`picker${busy ? " disabled" : ""}`}>
-        <input type="file" accept="video/*" multiple disabled={busy} onChange={onFilesChosen} />
+        <input
+          type="file"
+          accept={isAgreement ? "image/*,application/pdf,video/*" : "video/*"}
+          multiple
+          disabled={busy}
+          onChange={onFilesChosen}
+        />
         <span className="btn" role="button" tabIndex={-1}>
-          {hasFiles ? "＋ Add more videos" : "Choose or record videos"}
+          {hasFiles
+            ? isAgreement
+              ? "＋ Add more files"
+              : "＋ Add more videos"
+            : isAgreement
+              ? "Choose files or take photos"
+              : "Choose or record videos"}
         </span>
       </label>
 
@@ -486,7 +506,7 @@ function UploadScreen({
 
       {allDone ? (
         <>
-          <div className="success">All videos uploaded ✓</div>
+          <div className="success">All {isAgreement ? "files" : "videos"} uploaded ✓</div>
           <div className="stack">
             <button
               type="button"
@@ -510,7 +530,11 @@ function UploadScreen({
           >
             {busy
               ? "Uploading…"
-              : `Upload ${pending.length} video${pending.length === 1 ? "" : "s"}`}
+              : `Upload ${pending.length} ${
+                  isAgreement
+                    ? `file${pending.length === 1 ? "" : "s"}`
+                    : `video${pending.length === 1 ? "" : "s"}`
+                }`}
           </button>
         )
       )}

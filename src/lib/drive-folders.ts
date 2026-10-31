@@ -35,11 +35,22 @@ function findOrCreate(name: string, parentId: string): Promise<string> {
     const existing = list.data.files?.[0]?.id;
     if (existing) return existing;
 
-    const created = await drive.files.create({
-      requestBody: { name, mimeType: FOLDER_MIME, parents: [parentId] },
-      fields: "id",
-      supportsAllDrives: true,
-    });
+    let created;
+    try {
+      created = await drive.files.create({
+        requestBody: { name, mimeType: FOLDER_MIME, parents: [parentId] },
+        fields: "id",
+        supportsAllDrives: true,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("File not found") || (typeof err === "object" && err !== null && "status" in err && (err as { status: number }).status === 404)) {
+        throw new Error(
+          `Google Drive folder "${parentId}" was not found or is not accessible. Please ensure the folder exists and is shared with Editor access to your authorized Google account.`,
+        );
+      }
+      throw err;
+    }
     const id = created.data.id;
     if (!id) throw new Error(`Could not create Drive folder "${name}"`);
     return id;

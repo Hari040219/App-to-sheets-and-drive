@@ -1,5 +1,5 @@
-import type { Category } from "./constants";
-import { guessVideoMime } from "./format";
+import { isAgreementCategory, type Category } from "./constants";
+import { guessMime, guessVideoMime } from "./format";
 
 export interface Profile {
   name: string;
@@ -55,13 +55,15 @@ async function postJson<T>(url: string, profile: Profile, payload: unknown): Pro
 
 export function createSession(profile: Profile, category: Category, file: File) {
   const clientOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const isAgreement = isAgreementCategory(category);
+  const mimeType = file.type || guessMime(file.name) || guessVideoMime(file.name);
   return postJson<{ uploadUrl: string; fileName: string }>("/api/upload-session", profile, {
     category,
     date: profile.date,
     foName: profile.name,
     rigIc: profile.rigIc,
-    fileName: file.name || "video",
-    mimeType: file.type || guessVideoMime(file.name),
+    fileName: file.name || (isAgreement ? "agreement" : "video"),
+    mimeType,
     size: file.size,
     clientOrigin,
   });

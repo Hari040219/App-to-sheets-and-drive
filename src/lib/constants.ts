@@ -4,6 +4,8 @@ export const CATEGORIES = [
   "Rig Installation",
   "Post Check",
   "Post Pack",
+  "Agreement signed copy of the Owner",
+  "Agreement signed copy of the Data collector",
   "Rig Issue",
 ] as const;
 
@@ -11,6 +13,15 @@ export type Category = (typeof CATEGORIES)[number];
 
 export function isCategory(value: unknown): value is Category {
   return typeof value === "string" && (CATEGORIES as readonly string[]).includes(value);
+}
+
+export const AGREEMENT_CATEGORIES = [
+  "Agreement signed copy of the Owner",
+  "Agreement signed copy of the Data collector",
+] as const;
+
+export function isAgreementCategory(value: unknown): boolean {
+  return typeof value === "string" && (AGREEMENT_CATEGORIES as readonly string[]).includes(value);
 }
 
 /** Largest single video accepted (Drive allows far more; this is our own cap). */

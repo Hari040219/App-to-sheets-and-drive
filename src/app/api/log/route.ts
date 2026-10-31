@@ -1,5 +1,11 @@
 import { hasValidAccessCode } from "@/lib/access";
-import { MAX_DESC_LEN, MAX_NAME_LEN, MAX_RIG_LEN, isCategory } from "@/lib/constants";
+import {
+  MAX_DESC_LEN,
+  MAX_NAME_LEN,
+  MAX_RIG_LEN,
+  isAgreementCategory,
+  isCategory,
+} from "@/lib/constants";
 import { ensureUploadFolder } from "@/lib/drive-folders";
 import { env, getDrive, getSheets } from "@/lib/google";
 import { readString, safeNamePart } from "@/lib/sanitize";
@@ -133,8 +139,17 @@ export async function POST(req: Request) {
     if (file.trashed || !file.id || !file.name || !file.webViewLink) {
       return Response.json({ error: "File is not available in Drive" }, { status: 409 });
     }
-    if (!file.mimeType?.startsWith("video/")) {
-      return Response.json({ error: "Uploaded file is not a video" }, { status: 409 });
+    const isAgreement = isAgreementCategory(category);
+    const fileMime = (file.mimeType || "").toLowerCase();
+    const isValidMime = isAgreement
+      ? fileMime.startsWith("image/") || fileMime.startsWith("video/") || fileMime === "application/pdf"
+      : fileMime.startsWith("video/");
+
+    if (!isValidMime) {
+      return Response.json(
+        { error: isAgreement ? "Uploaded file is not an image, PDF, or video" : "Uploaded file is not a video" },
+        { status: 409 },
+      );
     }
     if (!file.parents?.includes(folderId)) {
       return Response.json({ error: "File is not in the expected folder" }, { status: 409 });

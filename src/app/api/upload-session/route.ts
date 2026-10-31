@@ -3,9 +3,11 @@ import {
   MAX_BYTES,
   MAX_NAME_LEN,
   MAX_RIG_LEN,
+  isAgreementCategory,
   isCategory,
 } from "@/lib/constants";
 import { ensureUploadFolder, forgetUploadFolder } from "@/lib/drive-folders";
+import { guessMime } from "@/lib/format";
 import { getAccessToken } from "@/lib/google";
 import { readString, safeNamePart } from "@/lib/sanitize";
 
@@ -74,7 +76,7 @@ export async function POST(req: Request) {
   const rigIc = readString(body.rigIc, MAX_RIG_LEN);
   const date = readString(body.date, 10);
   const originalName = readString(body.fileName, 300);
-  const mimeType = readString(body.mimeType, 100);
+  let mimeType = readString(body.mimeType, 100);
   const size = body.size;
   const clientOrigin = typeof body.clientOrigin === "string" ? body.clientOrigin : undefined;
 
@@ -87,8 +89,20 @@ export async function POST(req: Request) {
   if (!originalName) {
     return Response.json({ error: "File name is required" }, { status: 400 });
   }
-  if (!mimeType || !mimeType.toLowerCase().startsWith("video/")) {
-    return Response.json({ error: "Only video files can be uploaded" }, { status: 400 });
+  if (!mimeType) {
+    mimeType = guessMime(originalName);
+  }
+  const isAgreement = isAgreementCategory(category);
+  const lowerMime = (mimeType || "").toLowerCase();
+  const isValidMime = isAgreement
+    ? lowerMime.startsWith("image/") || lowerMime.startsWith("video/") || lowerMime === "application/pdf"
+    : lowerMime.startsWith("video/");
+
+  if (!isValidMime) {
+    const errorMsg = isAgreement
+      ? "Only image, PDF, or video files can be uploaded"
+      : "Only video files can be uploaded";
+    return Response.json({ error: errorMsg }, { status: 400 });
   }
   if (typeof size !== "number" || !Number.isInteger(size) || size <= 0) {
     return Response.json({ error: "Invalid file size" }, { status: 400 });
@@ -141,6 +155,7 @@ export async function POST(req: Request) {
     return Response.json({ uploadUrl, fileName: driveName });
   } catch (err) {
     console.error("upload-session error", err);
-    return Response.json({ error: "Server error while starting the upload" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Server error while starting the upload";
+    return Response.json({ error: message }, { status: 500 });
   }
 }

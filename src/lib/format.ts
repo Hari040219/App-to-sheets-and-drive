@@ -1,3 +1,5 @@
+import { isAgreementCategory, type Category } from "./constants";
+
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   const units = ["KB", "MB", "GB", "TB"];
@@ -11,6 +13,7 @@ export function formatBytes(bytes: number): string {
 }
 
 const EXTENSION_MIME: Record<string, string> = {
+  // Video
   mp4: "video/mp4",
   m4v: "video/x-m4v",
   mov: "video/quicktime",
@@ -21,14 +24,36 @@ const EXTENSION_MIME: Record<string, string> = {
   avi: "video/x-msvideo",
   mpg: "video/mpeg",
   mpeg: "video/mpeg",
+  // Images
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+  // Documents
+  pdf: "application/pdf",
 };
 
 /** Some phones report an empty file.type; fall back to the extension. */
-export function guessVideoMime(fileName: string): string {
+export function guessMime(fileName: string): string {
   const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
   return EXTENSION_MIME[ext] ?? "";
 }
 
+export function guessVideoMime(fileName: string): string {
+  const mime = guessMime(fileName);
+  return mime.startsWith("video/") ? mime : "";
+}
+
 export function isVideoFile(file: File): boolean {
   return file.type.toLowerCase().startsWith("video/") || guessVideoMime(file.name) !== "";
+}
+
+export function isAllowedFile(file: File, category?: Category | null): boolean {
+  if (category && isAgreementCategory(category)) {
+    const mime = (file.type || guessMime(file.name)).toLowerCase();
+    return mime.startsWith("image/") || mime.startsWith("video/") || mime === "application/pdf";
+  }
+  return isVideoFile(file);
 }
