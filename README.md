@@ -10,7 +10,7 @@ Videos go **from the phone straight to Google Drive** using Drive's resumable up
 
 ## How it works
 
-1. The FO enters name, Rig IC number and the shared access code (saved in the phone's `localStorage`).
+1. The FO enters business details, data collector info (height, phone, email, name), Rig IC number and the shared access code (saved in the phone's `localStorage`).
 2. They pick a category: Pre Check, Pre Pack, Rig Installation, Post Check, Post Pack, Agreement signed copy of the Owner, Agreement signed copy of the Data collector, or Rig Issue.
 3. They choose or record videos, optionally add a description, and tap **Upload**. Files upload one at a time with a progress bar, automatic retry with backoff, and resume from the last byte Drive received.
 

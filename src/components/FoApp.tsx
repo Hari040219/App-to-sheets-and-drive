@@ -3,7 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { createSession, logUpload, type Profile } from "@/lib/api";
-import { CATEGORIES, MAX_BYTES, MAX_DESC_LEN, MAX_NAME_LEN, MAX_RIG_LEN, isAgreementCategory, type Category } from "@/lib/constants";
+import {
+  CATEGORIES,
+  MAX_BIZ_LEN,
+  MAX_BYTES,
+  MAX_DESC_LEN,
+  MAX_NAME_LEN,
+  MAX_PHONE_LEN,
+  MAX_RIG_LEN,
+  isAgreementCategory,
+  type Category,
+} from "@/lib/constants";
 import { formatBytes, isAllowedFile } from "@/lib/format";
 import { loadProfile, saveProfile, todayIST } from "@/lib/storage";
 import { uploadToSession } from "@/lib/uploader";
@@ -38,7 +48,17 @@ export default function FoApp() {
     const saved = loadProfile();
     if (saved) {
       setProfile(saved);
-      setScreen("categories");
+      if (
+        saved.businessName &&
+        saved.businessId &&
+        saved.collectorHeight &&
+        saved.collectorPhone &&
+        saved.collectorEmail
+      ) {
+        setScreen("categories");
+      } else {
+        setScreen("login");
+      }
     }
     setReady(true);
   }, []);
@@ -52,8 +72,24 @@ export default function FoApp() {
       {profile && screen !== "login" && (
         <div className="who">
           <div>
-            <strong>{profile.name}</strong>
+            {profile.businessName && (
+              <strong>
+                🏢 {profile.businessName} {profile.businessId ? `(${profile.businessId})` : ""}
+              </strong>
+            )}
+            <div>
+              <strong>👤 {profile.name}</strong>
+              {profile.collectorHeight && (
+                <span className="who-detail">Height: {profile.collectorHeight} cm</span>
+              )}
+            </div>
             <span className="who-detail">Rig IC: {profile.rigIc}</span>
+            {profile.collectorPhone && (
+              <span className="who-detail">📞 {profile.collectorPhone}</span>
+            )}
+            {profile.collectorEmail && (
+              <span className="who-detail">✉️ {profile.collectorEmail}</span>
+            )}
             <span className="who-detail">📅 {profile.date}</span>
           </div>
           <button
@@ -121,6 +157,11 @@ function LoginScreen({
   onSave: (p: Profile) => void;
   onCancel?: () => void;
 }) {
+  const [businessName, setBusinessName] = useState(initial?.businessName ?? "");
+  const [businessId, setBusinessId] = useState(initial?.businessId ?? "");
+  const [collectorHeight, setCollectorHeight] = useState(initial?.collectorHeight ?? "");
+  const [collectorPhone, setCollectorPhone] = useState(initial?.collectorPhone ?? "");
+  const [collectorEmail, setCollectorEmail] = useState(initial?.collectorEmail ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const [rigIc, setRigIc] = useState(initial?.rigIc ?? "");
   const [code, setCode] = useState(initial?.code ?? "");
@@ -129,18 +170,98 @@ function LoginScreen({
 
   function submit(e: FormEvent) {
     e.preventDefault();
+    const bName = businessName.trim();
+    const bId = businessId.trim();
+    const cHeight = collectorHeight.trim();
+    const cPhone = collectorPhone.trim();
+    const cEmail = collectorEmail.trim();
     const n = name.trim();
     const r = rigIc.trim();
+
+    if (!bName) return setError("Please enter the Business name.");
+    if (!bId) return setError("Please enter the Business ID.");
+    if (!cHeight) return setError("Please enter the Data collector height in cm.");
+    if (!cPhone) return setError("Please enter the Data collector phone number.");
+    if (!cEmail) return setError("Please enter the Data collector email ID.");
     if (!date) return setError("Please select a date.");
     if (!n) return setError("Please enter your name.");
     if (!r) return setError("Please enter the Rig IC number.");
-    onSave({ name: n, rigIc: r, code: code.trim(), date });
+
+    onSave({
+      businessName: bName,
+      businessId: bId,
+      collectorHeight: cHeight,
+      collectorPhone: cPhone,
+      collectorEmail: cEmail,
+      name: n,
+      rigIc: r,
+      code: code.trim(),
+      date,
+    });
   }
 
   return (
     <form onSubmit={submit} noValidate>
       <h1>FO Video Upload</h1>
       <p className="muted">Enter your details once. They stay saved on this phone.</p>
+
+      <label className="field">
+        Business name
+        <input
+          type="text"
+          value={businessName}
+          maxLength={MAX_BIZ_LEN}
+          autoComplete="organization"
+          onChange={(e) => setBusinessName(e.target.value)}
+        />
+      </label>
+
+      <label className="field">
+        Business ID
+        <input
+          type="text"
+          value={businessId}
+          maxLength={MAX_RIG_LEN}
+          autoCapitalize="characters"
+          autoComplete="off"
+          onChange={(e) => setBusinessId(e.target.value)}
+        />
+      </label>
+
+      <label className="field">
+        Data collector height in cm
+        <input
+          type="number"
+          value={collectorHeight}
+          placeholder="e.g. 175"
+          min="50"
+          max="250"
+          onChange={(e) => setCollectorHeight(e.target.value)}
+        />
+      </label>
+
+      <label className="field">
+        Data collector Phone number
+        <input
+          type="tel"
+          value={collectorPhone}
+          maxLength={MAX_PHONE_LEN}
+          autoComplete="tel"
+          onChange={(e) => setCollectorPhone(e.target.value)}
+        />
+      </label>
+
+      <label className="field">
+        Data collector Email ID
+        <input
+          type="email"
+          value={collectorEmail}
+          maxLength={MAX_NAME_LEN}
+          autoComplete="email"
+          autoCapitalize="none"
+          onChange={(e) => setCollectorEmail(e.target.value)}
+        />
+      </label>
 
       <label className="field">
         Date
@@ -153,7 +274,7 @@ function LoginScreen({
       </label>
 
       <label className="field">
-        Your name
+        Data collector name
         <input
           type="text"
           value={name}
@@ -416,6 +537,11 @@ function UploadScreen({
       <h1>{category}</h1>
 
       <div className="folder-path">
+        {profile.businessName && (
+          <div style={{ marginBottom: "4px" }}>
+            🏢 {profile.businessName} {profile.businessId ? `(${profile.businessId})` : ""}
+          </div>
+        )}
         📁 {profile.date} / {profile.name} / {profile.rigIc}
         <br />
         {isAgreement ? "📄 Document" : "🎬 Video"} will be saved as <strong>{category}</strong>

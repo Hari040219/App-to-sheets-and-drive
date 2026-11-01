@@ -2,6 +2,11 @@ import { isAgreementCategory, type Category } from "./constants";
 import { guessMime, guessVideoMime } from "./format";
 
 export interface Profile {
+  businessName: string;
+  businessId: string;
+  collectorHeight: string;
+  collectorPhone: string;
+  collectorEmail: string;
   name: string;
   rigIc: string;
   code: string;
@@ -82,5 +87,10 @@ export function logUpload(
     description,
     foName: profile.name,
     rigIc: profile.rigIc,
+    businessName: profile.businessName,
+    businessId: profile.businessId,
+    collectorHeight: profile.collectorHeight,
+    collectorPhone: profile.collectorPhone,
+    collectorEmail: profile.collectorEmail,
   });
 }

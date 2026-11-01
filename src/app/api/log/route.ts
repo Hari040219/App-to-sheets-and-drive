@@ -1,7 +1,9 @@
 import { hasValidAccessCode } from "@/lib/access";
 import {
+  MAX_BIZ_LEN,
   MAX_DESC_LEN,
   MAX_NAME_LEN,
+  MAX_PHONE_LEN,
   MAX_RIG_LEN,
   isAgreementCategory,
   isCategory,
@@ -14,7 +16,8 @@ import { istStamp } from "@/lib/time";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const HEADER = [
+/* ---- Main uploads tab ---- */
+const UPLOAD_HEADER = [
   "Timestamp (IST)",
   "Date",
   "FO Name",
@@ -24,6 +27,19 @@ const HEADER = [
   "File Name",
   "Size (MB)",
   "Drive Link",
+];
+
+/* ---- Separate business / collector info tab ---- */
+const INFO_HEADER = [
+  "Timestamp (IST)",
+  "Date",
+  "FO Name",
+  "Rig IC Number",
+  "Business Name",
+  "Business ID",
+  "Data Collector Height (cm)",
+  "Data Collector Phone",
+  "Data Collector Email",
 ];
 
 // Serialise log calls inside one server instance so two simultaneous requests
@@ -44,48 +60,71 @@ function isMissingTabError(err: unknown): boolean {
   return /unable to parse range/i.test(message);
 }
 
-async function readSheetState(tab: string) {
+async function ensureTab(tab: string) {
   const sheets = getSheets();
   const spreadsheetId = env("SHEET_ID");
   const q = quoteTab(tab);
-  return sheets.spreadsheets.values.batchGet({
-    spreadsheetId,
-    ranges: [`${q}!A1:I1`, `${q}!I2:I`],
-  });
-}
 
-async function createTab(tab: string) {
-  await getSheets().spreadsheets.batchUpdate({
-    spreadsheetId: env("SHEET_ID"),
-    requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
-  });
-}
-
-async function appendRow(tab: string, row: (string | number)[], link: string) {
-  const sheets = getSheets();
-  const spreadsheetId = env("SHEET_ID");
-
-  let state;
+  let headerRow: string[] = [];
   try {
-    state = await readSheetState(tab);
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${q}!1:1`,
+    });
+    headerRow = (res.data.values?.[0] as string[]) ?? [];
   } catch (err) {
     if (!isMissingTabError(err)) throw err;
-    await createTab(tab);
-    state = await readSheetState(tab);
+    // Tab doesn't exist — create it
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
+    });
   }
 
-  const [headerRange, linkRange] = state.data.valueRanges ?? [];
-  const hasHeader = (headerRange?.values?.[0]?.length ?? 0) > 0;
-  const alreadyLogged = (linkRange?.values ?? []).some((r) => r[0] === link);
-  if (alreadyLogged) return { duplicate: true };
+  return { headerRow };
+}
+
+/**
+ * Append a row to the given tab inside the log spreadsheet.
+ * `dedupeValue` is checked against all existing rows to prevent duplicates.
+ * If `dedupeValue` is empty the duplicate check is skipped.
+ */
+async function appendRow(
+  tab: string,
+  header: string[],
+  row: (string | number)[],
+  dedupeValue: string,
+) {
+  const sheets = getSheets();
+  const spreadsheetId = env("SHEET_ID");
+  const q = quoteTab(tab);
+
+  const { headerRow } = await ensureTab(tab);
+  const hasHeader = headerRow.length > 0;
+
+  // De-duplicate if requested
+  if (dedupeValue) {
+    try {
+      const dataRes = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${q}!A2:Z`,
+      });
+      const alreadyLogged = (dataRes.data.values ?? []).some((r) =>
+        (r as string[]).includes(dedupeValue),
+      );
+      if (alreadyLogged) return { duplicate: true };
+    } catch {
+      // No data rows yet — not a duplicate
+    }
+  }
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: `${quoteTab(tab)}!A1`,
+    range: `${q}!A1`,
     // RAW so a description starting with "=" can never run as a formula.
     valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
-    requestBody: { values: hasHeader ? [row] : [HEADER, row] },
+    requestBody: { values: hasHeader ? [row] : [header, row] },
   });
   return { duplicate: false };
 }
@@ -111,6 +150,11 @@ export async function POST(req: Request) {
   const category = body.category;
   const description =
     typeof body.description === "string" ? body.description.trim().slice(0, MAX_DESC_LEN) : "";
+  const businessName = readString(body.businessName, MAX_BIZ_LEN) ?? "";
+  const businessId = readString(body.businessId, MAX_RIG_LEN) ?? "";
+  const collectorHeight = readString(body.collectorHeight, 20) ?? "";
+  const collectorPhone = readString(body.collectorPhone, MAX_PHONE_LEN) ?? "";
+  const collectorEmail = readString(body.collectorEmail, MAX_NAME_LEN) ?? "";
 
   if (!fileId || !foName || !rigIc || !isCategory(category)) {
     return Response.json({ error: "Missing or invalid fields" }, { status: 400 });
@@ -158,8 +202,13 @@ export async function POST(req: Request) {
       return Response.json({ error: "Upload is not complete yet" }, { status: 409 });
     }
 
-    const row: (string | number)[] = [
-      istStamp().display,
+    const stamp = istStamp().display;
+    const uploadTab = process.env.SHEET_TAB || "Uploads";
+    const infoTab = process.env.BUSINESS_TAB || "Business Info";
+
+    // Row for the main uploads sheet
+    const uploadRow: (string | number)[] = [
+      stamp,
       date,
       foName,
       rigIc,
@@ -170,8 +219,51 @@ export async function POST(req: Request) {
       file.webViewLink,
     ];
 
-    const tab = process.env.SHEET_TAB || "Uploads";
-    const result = await serialise(() => appendRow(tab, row, file.webViewLink as string));
+    // Row for the business/collector info sheet
+    const infoRow: (string | number)[] = [
+      stamp,
+      date,
+      foName,
+      rigIc,
+      businessName,
+      businessId,
+      collectorHeight,
+      collectorPhone,
+      collectorEmail,
+    ];
+
+    const result = await serialise(async () => {
+      // 1. Append to main uploads tab (deduplicate by Drive link)
+      const uploadResult = await appendRow(
+        uploadTab,
+        UPLOAD_HEADER,
+        uploadRow,
+        file.webViewLink as string,
+      );
+
+      // 2. Append to business info tab if not already recorded for this session
+      if (!uploadResult.duplicate) {
+        let alreadyInInfo = false;
+        try {
+          const sheets = getSheets();
+          const infoRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: env("SHEET_ID"),
+            range: `${quoteTab(infoTab)}!A2:I`,
+          });
+          alreadyInInfo = (infoRes.data.values ?? []).some(
+            (r) => r[1] === date && r[2] === foName && r[3] === rigIc && r[5] === businessId,
+          );
+        } catch {
+          // ignore error if tab or range not yet populated
+        }
+
+        if (!alreadyInInfo) {
+          await appendRow(infoTab, INFO_HEADER, infoRow, "");
+        }
+      }
+
+      return uploadResult;
+    });
 
     return Response.json({ ok: true, duplicate: result.duplicate });
   } catch (err) {
