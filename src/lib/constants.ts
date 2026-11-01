@@ -33,3 +33,5 @@ export const CHUNK_SIZE = 8 * 1024 * 1024; // 8 MB
 export const MAX_NAME_LEN = 100;
 export const MAX_RIG_LEN = 50;
 export const MAX_DESC_LEN = 2000;
+export const MAX_BIZ_LEN = 100;
+export const MAX_PHONE_LEN = 20;

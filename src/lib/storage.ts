@@ -19,12 +19,23 @@ export function loadProfile(): Profile | null {
       parsed.name &&
       parsed.rigIc
     ) {
+      const p = parsed as Record<string, unknown>;
       // date is NOT restored — it defaults to today each session
       const date =
         "date" in parsed && typeof parsed.date === "string" && parsed.date
           ? parsed.date
           : todayIST();
-      return { name: parsed.name, rigIc: parsed.rigIc, code: parsed.code, date };
+      return {
+        businessName: typeof p.businessName === "string" ? p.businessName : "",
+        businessId: typeof p.businessId === "string" ? p.businessId : "",
+        collectorHeight: typeof p.collectorHeight === "string" ? p.collectorHeight : "",
+        collectorPhone: typeof p.collectorPhone === "string" ? p.collectorPhone : "",
+        collectorEmail: typeof p.collectorEmail === "string" ? p.collectorEmail : "",
+        name: parsed.name,
+        rigIc: parsed.rigIc,
+        code: parsed.code,
+        date,
+      };
     }
   } catch {
     // storage unavailable or corrupt — treat as not saved
