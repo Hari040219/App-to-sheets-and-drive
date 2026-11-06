@@ -1,16 +1,23 @@
 :root {
-  --bg: #ffffff;
-  --fg: #111111;
-  --muted: #4a4a4a;
-  --line: #111111;
-  --soft: #f1f3f5;
-  --primary: #0a3d91;
+  /* Grounded, warm, organic field-operations palette (non-AI) */
+  --bg: #e6ece5; /* Distinct earthy sage field tint */
+  --surface: #ffffff;
+  --fg: #1c231f;
+  --muted: #535d56;
+  --line: #2b3930;
+  --line-subtle: #bec8be;
+  --soft: #dbe3da;
+  --primary: #1e4635; /* Deep evergreen / hunter pine */
+  --primary-hover: #153527;
   --primary-fg: #ffffff;
-  --ok: #17692f;
-  --danger: #b3261e;
-  --danger-soft: #fff4f3;
-  --warn-bg: #fff3cd;
-  --warn-fg: #4d3800;
+  --ok: #236842;
+  --ok-soft: #edf6f0;
+  --danger: #9c3325; /* Burnt terracotta */
+  --danger-soft: #fcf2f0;
+  --warn-bg: #fdf6e7;
+  --warn-border: #d4982a;
+  --warn-fg: #6e3f05;
+  --focus-ring: #c47b19; /* Warm brass */
   color-scheme: light;
 }
 
@@ -65,7 +72,7 @@ p {
   justify-content: space-between;
   gap: 12px;
   background: var(--soft);
-  border: 2px solid var(--line);
+  border: 1.5px solid var(--line-subtle);
   border-radius: 12px;
   padding: 10px 14px;
   margin-bottom: 20px;
@@ -131,9 +138,10 @@ textarea {
   font: inherit;
   font-size: 16px; /* 16px stops iOS from zooming on focus */
   color: var(--fg);
-  background: #fff;
+  background: var(--surface);
   border: 2px solid var(--line);
   border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(28, 35, 31, 0.04);
 }
 
 textarea {
@@ -145,7 +153,7 @@ input:focus-visible,
 textarea:focus-visible,
 button:focus-visible,
 .btn:focus-visible {
-  outline: 4px solid #ffbf00;
+  outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -156,18 +164,20 @@ button:focus-visible,
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 60px;
+  min-height: 58px;
   padding: 14px 18px;
   font: inherit;
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 700;
   text-align: center;
   color: var(--fg);
-  background: #fff;
-  border: 3px solid var(--line);
-  border-radius: 14px;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(28, 35, 31, 0.08);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
 .btn:active:not(:disabled) {
@@ -184,10 +194,12 @@ button:focus-visible,
   background: var(--primary);
   border-color: var(--primary);
   color: var(--primary-fg);
+  box-shadow: 0 2px 5px rgba(30, 70, 53, 0.22);
 }
 
 .btn.primary:active:not(:disabled) {
-  background: #072c69;
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 .btn.small {
@@ -214,7 +226,7 @@ button:focus-visible,
 .category.issue {
   border-color: var(--danger);
   background: var(--danger-soft);
-  color: #7a120d;
+  color: var(--danger);
   box-shadow: inset 8px 0 0 var(--danger);
   padding-left: 28px;
 }
@@ -222,7 +234,7 @@ button:focus-visible,
 /* ---------- upload screen ---------- */
 .folder-path {
   background: var(--soft);
-  border: 2px solid var(--line);
+  border: 1.5px solid var(--line-subtle);
   border-radius: 10px;
   padding: 10px 14px;
   margin: 8px 0 16px;
@@ -235,7 +247,7 @@ button:focus-visible,
 .banner {
   background: var(--warn-bg);
   color: var(--warn-fg);
-  border: 2px solid #b58900;
+  border: 1.5px solid var(--warn-border);
   border-radius: 12px;
   padding: 12px 14px;
   margin: 16px 0;
@@ -269,17 +281,21 @@ button:focus-visible,
 }
 
 .file {
-  border: 2px solid var(--line);
+  background: var(--surface);
+  border: 1.5px solid var(--line-subtle);
   border-radius: 12px;
   padding: 12px 14px;
+  box-shadow: 0 1px 2px rgba(28, 35, 31, 0.04);
 }
 
 .file.done {
   border-color: var(--ok);
+  background: var(--ok-soft);
 }
 
 .file.error {
   border-color: var(--danger);
+  background: var(--danger-soft);
 }
 
 .file-head {
@@ -304,8 +320,8 @@ button:focus-visible,
 .bar {
   height: 14px;
   border-radius: 7px;
-  background: #d9dde1;
-  border: 1px solid #8a9096;
+  background: #e2e6e1;
+  border: 1px solid #bcc3bb;
   margin: 10px 0 6px;
   overflow: hidden;
 }
@@ -353,7 +369,8 @@ button:focus-visible,
 }
 
 .success {
-  border: 3px solid var(--ok);
+  border: 2px solid var(--ok);
+  background: var(--ok-soft);
   border-radius: 14px;
   padding: 16px;
   margin: 16px 0;
