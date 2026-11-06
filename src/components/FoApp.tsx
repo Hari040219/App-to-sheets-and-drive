@@ -184,7 +184,7 @@ function LoginScreen({
     if (!cPhone) return setError("Please enter the Data collector phone number.");
     if (!cEmail) return setError("Please enter the Data collector email ID.");
     if (!date) return setError("Please select a date.");
-    if (!n) return setError("Please enter your name.");
+    if (!n) return setError("Please enter FO name.");
     if (!r) return setError("Please enter the Rig IC number.");
 
     onSave({
@@ -274,7 +274,7 @@ function LoginScreen({
       </label>
 
       <label className="field">
-        Data collector name
+        FO name
         <input
           type="text"
           value={name}
